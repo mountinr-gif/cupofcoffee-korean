@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+
+# Cup of Coffee Korean — static site, no admin area.
+Sitemap: https://mountinr-gif.github.io/cupofcoffee-korean/sitemap.xml
