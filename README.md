@@ -77,7 +77,8 @@ taken on this site.
 
 `assets/downloads/cupofcoffee-gs25-phrase-card.pdf` is the free one-page GS25 phrase card
 (12 sentences). The 4-page Seoul Survival Pack (39 sentences) is not hosted here; it is
-offered through the Kit list and Instagram DM.
+sold on Gumroad at $1+ (pay what you want), and every pack mention on the site links to
+https://coffeekorean.gumroad.com/l/seoul-survival-pack.
 
 ## Audio
 
