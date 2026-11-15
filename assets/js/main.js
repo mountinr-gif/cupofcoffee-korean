@@ -315,7 +315,7 @@
   var MSG_EMAIL =
     "That email address doesn&rsquo;t look right &mdash; check it and press the button again.";
   var MSG_OK =
-    "<strong>You&rsquo;re on the list.</strong> Check your inbox and click the confirmation link &mdash; that is what puts the sentence in your mailbox. If nothing arrives in a few minutes, look in spam and mark it &ldquo;not spam&rdquo;." +
+    "<strong>You&rsquo;re on the list.</strong> Check your inbox &mdash; if the email asks you to confirm, click the link; that is what puts the sentence in your mailbox. If nothing arrives in a few minutes, look in spam and mark it &ldquo;not spam&rdquo;." +
     '<span class="form-message__extra">Want the whole morning, every morning? Daily letters with Ku&rsquo;s audio, a word-by-word breakdown and a culture note, plus the live class every two weeks &mdash; <strong>$6.99/mo or $59/yr</strong>, with 7 days free.</span>' +
     '<a class="btn btn--sm" href="' + GUMROAD + '" target="_blank" rel="noopener">Start the 7-day free trial &rarr;</a>';
   var MSG_FAIL =
