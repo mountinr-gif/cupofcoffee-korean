@@ -1596,12 +1596,15 @@ table.vocab .roman {
 .form-message__extra { display: block; margin-top: 8px; }
 .form-message .btn { margin-top: 11px; }
 .form-message a { color: inherit; text-decoration: underline; }
+.form-message a.btn { color: var(--btn-fg); text-decoration: none; }
+.form-message a.btn:hover { color: var(--btn-fg); }
 .newsletter .form-message--ok {
   background: rgba(231, 205, 176, 0.16);
   border-color: rgba(231, 205, 176, 0.42);
   color: #F3F6F1;
 }
 .newsletter .form-message--ok .btn { --btn-bg: #F7EFE3; --btn-fg: var(--espresso); }
+.newsletter .form-message--ok .btn:hover { background: #fff; color: var(--espresso); }
 .newsletter .form-message--error {
   background: rgba(255, 255, 255, 0.13);
   border-color: rgba(255, 255, 255, 0.3);
