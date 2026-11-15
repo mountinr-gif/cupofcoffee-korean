@@ -2,7 +2,7 @@
    Cup of Coffee Korean — main.js
    - Sticky header state & mobile navigation
    - Romanization show / hide toggle (persisted)
-   - Korean pronunciation playback (Web Speech API, 1.0x / 0.8x)
+   - Korean pronunciation playback (real MP3 files, 1.0x / 0.8x, speech fallback)
    - 3-question mini quizzes with instant grading
    - Newsletter sign-up: posts the email to the Kit form, handles loading, success and failure
    - Scroll reveal
@@ -88,13 +88,24 @@
     });
   }
 
-  /* ------------------------------------------------------- 3. Pronunciation */
+  /* ------------------------------------------------------- 3. Pronunciation
+     Every speaker button carries data-audio="…/assets/audio/*.mp3".  A real MP3
+     plays through an HTML5 Audio object, which is the only thing that reliably
+     makes sound on iOS with the silent switch on and inside in-app browsers.
+     speechSynthesis stays as a last-resort fallback for any button without a
+     file, or if the file cannot be played at all. */
   var speech = {
     supported: typeof window.speechSynthesis !== "undefined" && typeof window.SpeechSynthesisUtterance !== "undefined",
     rate: 1.0,
-    voice: null,
-    voicesReady: false
+    voice: null
   };
+  var audioState = { el: null, trigger: null };
+
+  function setPlaying(trigger, on) {
+    if (!trigger) return;
+    trigger.classList.toggle("is-playing", on);
+    trigger.setAttribute("aria-pressed", on ? "true" : "false");
+  }
 
   function pickKoreanVoice() {
     if (!speech.supported) return null;
@@ -125,7 +136,82 @@
   function stopSpeaking() {
     if (!speech.supported) return;
     try { window.speechSynthesis.cancel(); } catch (err) { /* noop */ }
+  }
+
+  function stopAudio() {
+    if (audioState.el) {
+      try { audioState.el.pause(); audioState.el.currentTime = 0; } catch (err) { /* noop */ }
+      audioState.el = null;
+    }
+    if (audioState.trigger) {
+      setPlaying(audioState.trigger, false);
+      audioState.trigger = null;
+    }
+  }
+
+  function stopAll() {
+    stopAudio();
+    stopSpeaking();
     $$(".is-playing").forEach(function (el) { el.classList.remove("is-playing"); });
+  }
+
+  function audioUrl(trigger) {
+    var raw = trigger.getAttribute("data-audio");
+    if (!raw) return "";
+    // resolve against the page so a subpath deploy keeps working
+    try {
+      return new URL(raw, window.location.href).href;
+    } catch (err) {
+      return raw;
+    }
+  }
+
+  function playAudioFile(trigger) {
+    var url = audioUrl(trigger);
+    var wasPlaying = trigger.classList.contains("is-playing");
+    stopAll();
+    if (wasPlaying) return;                    // second press = stop
+
+    var audio = new window.Audio();
+    audio.preload = "auto";
+    audio.src = url;
+    audio.playbackRate = speech.rate;
+    // keep the voice natural when slowed down (Safari, Chrome, Firefox names)
+    try { audio.preservesPitch = true; } catch (err) { /* noop */ }
+    try { audio.mozPreservesPitch = true; } catch (err) { /* noop */ }
+    try { audio.webkitPreservesPitch = true; } catch (err) { /* noop */ }
+
+    audioState.el = audio;
+    audioState.trigger = trigger;
+
+    audio.addEventListener("playing", function () { setPlaying(trigger, true); });
+    audio.addEventListener("ended", function () {
+      if (audioState.el === audio) { audioState.el = null; audioState.trigger = null; }
+      setPlaying(trigger, false);
+    });
+    audio.addEventListener("error", function () {
+      if (audioState.el === audio) { audioState.el = null; audioState.trigger = null; }
+      setPlaying(trigger, false);
+      fallbackToSpeech(trigger);
+    });
+
+    var promise = audio.play();
+    if (promise && typeof promise.catch === "function") {
+      promise.catch(function () {
+        if (audioState.el === audio) { audioState.el = null; audioState.trigger = null; }
+        setPlaying(trigger, false);
+        fallbackToSpeech(trigger);
+      });
+    }
+  }
+
+  function fallbackToSpeech(trigger) {
+    if (!speech.supported) {
+      showSpeechNotice("This browser could not play the recording. Try another browser, or open the page outside the in-app viewer.");
+      return;
+    }
+    var text = textForTrigger(trigger);
+    if (text) speak(text, trigger);
   }
 
   function speak(text, trigger) {
@@ -136,7 +222,7 @@
     }
 
     var wasPlaying = trigger && trigger.classList.contains("is-playing");
-    stopSpeaking();
+    stopAll();
     if (wasPlaying) return;
 
     var utter = new window.SpeechSynthesisUtterance(text);
@@ -150,15 +236,10 @@
       utter.voice = voice;
     }
 
-    utter.onstart = function () {
-      if (trigger) trigger.classList.add("is-playing");
-      if (trigger) trigger.setAttribute("aria-pressed", "true");
-    };
-    utter.onend = function () {
-      if (trigger) { trigger.classList.remove("is-playing"); trigger.setAttribute("aria-pressed", "false"); }
-    };
+    utter.onstart = function () { setPlaying(trigger, true); };
+    utter.onend = function () { setPlaying(trigger, false); };
     utter.onerror = function (event) {
-      if (trigger) { trigger.classList.remove("is-playing"); trigger.setAttribute("aria-pressed", "false"); }
+      setPlaying(trigger, false);
       if (event && (event.error === "not-allowed" || event.error === "synthesis-failed")) {
         showSpeechNotice("Playback was blocked by the browser. Press the speaker again, or check that your device has a Korean voice installed (System settings → Accessibility → Spoken content).");
       }
@@ -167,11 +248,7 @@
     try {
       window.speechSynthesis.speak(utter);
     } catch (err) {
-      showSpeechNotice("Playback is unavailable right now. If you are on iOS, add a Korean keyboard or voice under Settings → Accessibility → Spoken Content.");
-    }
-
-    if (!voice) {
-      showSpeechNotice("No Korean voice was found on this device, so the browser will use its default voice. For accurate sounds, install a Korean voice in your system settings (iOS: Settings → Accessibility → Spoken Content → Voices → Korean).");
+      showSpeechNotice("Playback is unavailable right now. If you are on iOS, add a Korean voice under Settings → Accessibility → Spoken Content.");
     }
   }
 
@@ -187,23 +264,24 @@
   }
 
   function initSpeech() {
-    if (!speech.supported) {
-      document.documentElement.classList.add("no-tts");
-      return;
+    if (speech.supported) {
+      if (window.speechSynthesis.getVoices && window.speechSynthesis.getVoices().length) {
+        speech.voice = pickKoreanVoice();
+      }
+      window.speechSynthesis.addEventListener("voiceschanged", function () {
+        speech.voice = pickKoreanVoice();
+      });
     }
-
-    if (window.speechSynthesis.getVoices && window.speechSynthesis.getVoices().length) {
-      speech.voice = pickKoreanVoice();
-    }
-    window.speechSynthesis.addEventListener("voiceschanged", function () {
-      speech.voice = pickKoreanVoice();
-    });
 
     document.addEventListener("click", function (e) {
       var trigger = e.target.closest("[data-speak], .phrase__speak, .vocab-speak");
       if (!trigger) return;
       e.preventDefault();
-      speak(textForTrigger(trigger), trigger);
+      if (trigger.getAttribute("data-audio")) {
+        playAudioFile(trigger);
+      } else {
+        speak(textForTrigger(trigger), trigger);
+      }
     });
 
     $$("[data-speed]").forEach(function (btn) {
@@ -217,6 +295,9 @@
         });
         var label = $("[data-speed-status]");
         if (label) label.textContent = speech.rate === 1 ? "Normal speed (1.0x)" : "Slow speed (0.8x)";
+        if (audioState.el) {
+          try { audioState.el.playbackRate = speech.rate; } catch (err) { /* noop */ }
+        }
         stopSpeaking();
       });
     });
@@ -228,9 +309,9 @@
       b.setAttribute("aria-pressed", String(active));
     });
 
-    window.addEventListener("pagehide", stopSpeaking);
+    window.addEventListener("pagehide", stopAll);
     document.addEventListener("visibilitychange", function () {
-      if (document.hidden) stopSpeaking();
+      if (document.hidden) stopAll();
     });
   }
 

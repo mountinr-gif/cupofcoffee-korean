@@ -1169,6 +1169,7 @@ table.vocab .roman {
   transition: background 0.16s var(--ease), color 0.16s var(--ease);
 }
 .vocab-speak:hover { background: var(--caramel-wash); color: var(--espresso); }
+.vocab-speak.is-playing { background: var(--sage); color: #fff; animation: pulse 1.1s infinite; }
 
 /* TOC */
 .toc {

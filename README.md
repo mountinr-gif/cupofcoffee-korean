@@ -30,6 +30,7 @@ assets/css/style.css
 assets/js/main.js
 assets/images/*.jpg            1200px-wide JPEGs, ~170 KB each
 assets/downloads/cupofcoffee-gs25-phrase-card.pdf   free 1-page phrase card
+assets/audio/*.mp3            94 Korean recordings (sentences + vocabulary)
 ```
 
 All internal links are **relative** (`assets/...`, `../assets/...`), so the site works
@@ -80,5 +81,9 @@ offered through the Kit list and Instagram DM.
 
 ## Audio
 
-Pronunciation uses the browser's own speech engine (`window.speechSynthesis`,
-`lang="ko-KR"`). Nothing is uploaded and no audio files are served.
+Every speaker button carries `data-audio="../assets/audio/<lesson>-NN.mp3"` and plays a
+real MP3 (94 files: 40 lesson sentences incl. the 14 pocha cards, 54 vocabulary words,
+`ko-KR-InJoonNeural`). `assets/js/main.js` uses an HTML5 `Audio` object with
+`playbackRate` 1.0x / 0.8x and `preservesPitch`, so the sound also works on iOS with the
+silent switch on and inside in-app browsers. `window.speechSynthesis` remains only as a
+fallback when a file is missing or cannot be played.
