@@ -29,6 +29,7 @@ sitemap.xml  robots.txt
 assets/css/style.css
 assets/js/main.js
 assets/images/*.jpg            1200px-wide JPEGs, ~170 KB each
+assets/downloads/cupofcoffee-gs25-phrase-card.pdf   free 1-page phrase card
 ```
 
 All internal links are **relative** (`assets/...`, `../assets/...`), so the site works
@@ -49,9 +50,33 @@ the AdSense verification tag and the auto-ads script go after approval.
 
 ## Forms
 
-The newsletter forms are UI-only previews (`data-newsletter` in `assets/js/main.js`).
-When a provider such as MailerLite or Kit is connected, replace the handler with the
-provider's form action and remove the preview message.
+The newsletter forms are live. `assets/js/main.js` posts
+
+```
+POST https://app.kit.com/forms/9209507/subscriptions
+Content-Type: application/json
+{ "email_address": "…", "first_name": "…" }   // first_name is omitted when empty
+```
+
+and shows three states: sending, signed up (with the Gumroad free-trial link), and a
+failure message that offers the landing page and Instagram as a fallback. The Kit form
+ID and the Gumroad / landing URLs live in two places that must stay in sync:
+`site_build/lib.py` (constants at the top) and the top of `assets/js/main.js`.
+
+## Paid subscription
+
+- Gumroad: https://coffeekorean.gumroad.com/l/newsletter ($6.99/mo, $59/yr, 7-day free trial)
+- Landing page: https://cup-of-coffee-korean.netlify.app
+
+Both are linked with `target="_blank" rel="noopener"` from the home page, every lesson
+sidebar and lesson footer, and every paid mention is labelled as paid. No payment is
+taken on this site.
+
+## Downloads
+
+`assets/downloads/cupofcoffee-gs25-phrase-card.pdf` is the free one-page GS25 phrase card
+(12 sentences). The 4-page Seoul Survival Pack (39 sentences) is not hosted here; it is
+offered through the Kit list and Instagram DM.
 
 ## Audio
 

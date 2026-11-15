@@ -4,13 +4,19 @@
    - Romanization show / hide toggle (persisted)
    - Korean pronunciation playback (Web Speech API, 1.0x / 0.8x)
    - 3-question mini quizzes with instant grading
-   - Newsletter form handling (UI only, no backend yet)
+   - Newsletter sign-up: posts the email to the Kit form, handles loading, success and failure
    - Scroll reveal
    ========================================================================== */
 (function () {
   "use strict";
 
   var STORAGE_KEY = "cok-roman-hidden";
+
+  /* Live integrations. Keep in sync with site_build/lib.py. */
+  var KIT_ENDPOINT = "https://app.kit.com/forms/9209507/subscriptions";
+  var GUMROAD = "https://coffeekorean.gumroad.com/l/newsletter";
+  var LANDING = "https://cup-of-coffee-korean.netlify.app";
+  var INSTAGRAM = "https://www.instagram.com/cupofcoffee_korean/";
 
   function $(sel, ctx) { return (ctx || document).querySelector(sel); }
   function $$(sel, ctx) { return Array.prototype.slice.call((ctx || document).querySelectorAll(sel)); }
@@ -305,26 +311,79 @@
     });
   }
 
-  /* -------------------------------------------------- 5. Newsletter (UI only) */
+  /* --------------------------------------------------- 5. Newsletter (Kit) */
+  var MSG_EMAIL =
+    "That email address doesn&rsquo;t look right &mdash; check it and press the button again.";
+  var MSG_OK =
+    "<strong>You&rsquo;re on the list.</strong> Check your inbox and click the confirmation link &mdash; that is what puts the sentence in your mailbox. If nothing arrives in a few minutes, look in spam and mark it &ldquo;not spam&rdquo;." +
+    '<span class="form-message__extra">Want the whole morning, every morning? Daily letters with Ku&rsquo;s audio, a word-by-word breakdown and a culture note, plus the live class every two weeks &mdash; <strong>$6.99/mo or $59/yr</strong>, with 7 days free.</span>' +
+    '<a class="btn btn--sm" href="' + GUMROAD + '" target="_blank" rel="noopener">Start the 7-day free trial &rarr;</a>';
+  var MSG_FAIL =
+    "<strong>We couldn&rsquo;t reach the mailing list just now.</strong> That is usually a short network problem, and nothing is lost &mdash; give it another try in a moment." +
+    '<span class="form-message__extra">If it keeps failing, <a href="' + LANDING + '" target="_blank" rel="noopener">join on the subscription page</a>, or DM <a href="' + INSTAGRAM + '" target="_blank" rel="noopener">@cupofcoffee_korean</a> and we will add you by hand. If a confirmation email arrives anyway, you are already on the list.</span>';
+
   function initForms() {
     $$("[data-newsletter]").forEach(function (form) {
       var message = $("[data-form-message]", form);
+      var button = $("button[type='submit']", form);
+      var emailInput = $("input[type='email']", form);
+      var nameInput = $("input[name='first_name']", form);
+      var label = (button && (button.getAttribute("data-submit-label") || button.textContent)) || "Join the list";
+
+      if (!message || !button || !emailInput) return;
+
+      function show(kind, html) {
+        message.className = "form-message" + (form.classList.contains("newsletter__form") ? "" : " form-message--inline") + " form-message--" + kind;
+        message.innerHTML = html;
+        message.hidden = false;
+      }
+
+      function busy(isBusy) {
+        form.classList.toggle("is-sending", isBusy);
+        form.setAttribute("aria-busy", isBusy ? "true" : "false");
+        button.disabled = isBusy;
+        button.textContent = isBusy ? "Sending\u2026" : label;
+      }
+
+      function done() {
+        busy(false);
+        form.classList.add("is-done");
+      }
+
       form.addEventListener("submit", function (e) {
         e.preventDefault();
-        var input = $("input[type='email']", form);
-        if (input && !input.checkValidity()) {
-          input.focus();
-          if (message) {
-            message.hidden = false;
-            message.textContent = "Please check your email address.";
-          }
+        if (form.getAttribute("aria-busy") === "true") return;
+
+        var email = (emailInput.value || "").trim();
+        if (!email || (emailInput.checkValidity && !emailInput.checkValidity())) {
+          show("error", MSG_EMAIL);
+          emailInput.focus();
           return;
         }
-        if (message) {
-          message.hidden = false;
-          message.textContent = "The mailing list is not connected yet — this is a preview of the sign-up form. Until it opens, message us on Instagram (@cupofcoffee_korean) and we will send the free phrase card directly.";
-        }
-        if (input) input.value = "";
+
+        var payload = { email_address: email };
+        var firstName = (nameInput && nameInput.value ? nameInput.value : "").trim();
+        if (firstName) payload.first_name = firstName;
+
+        message.hidden = true;
+        busy(true);
+
+        fetch(KIT_ENDPOINT, {
+          method: "POST",
+          mode: "cors",
+          credentials: "omit",
+          headers: { "Content-Type": "application/json", "Accept": "application/json" },
+          body: JSON.stringify(payload)
+        }).then(function (res) {
+          if (!res.ok) throw new Error("HTTP " + res.status);
+          if (nameInput) nameInput.value = "";
+          emailInput.value = "";
+          done();
+          show("ok", MSG_OK);
+        }).catch(function () {
+          busy(false);
+          show("error", MSG_FAIL);
+        });
       });
     });
   }
